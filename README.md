@@ -1,0 +1,1 @@
+# quickie_covid_script
