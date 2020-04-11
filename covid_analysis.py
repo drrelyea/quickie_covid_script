@@ -65,7 +65,6 @@ long_usdata.groupby(['state','day']).sum()
 
 most_recent_date = filename.split('/')[-1][0:10]
 
-most_recent_values = long_usdata[long_usdata.day == most_recent_date][['tot','ded','state']].groupby('state').sum()
 # the_states = most_recent_values.sort_values(by='tot').index.tolist()[-30:]
 the_states = state_populations['State'].values
 
@@ -88,30 +87,31 @@ for istate,the_state in enumerate(the_states):
     # reg = LinearRegression().fit(np.arange(len(usdata)).reshape(-1,1),np.log2(usdata.tot.values))
     # do the last 5 days
     n_most_recent_days = 5
+    
     reg = LinearRegression().fit(np.arange(n_most_recent_days).reshape(-1,1),np.log2(usdata[thetype].values[-n_most_recent_days:]))
     overall_population = state_populations[state_populations.State == the_state].Pop.values[0]
-    per_capita_infected = most_recent_values.loc[the_state,'ded']*100/overall_population
+    per_capita_total_infected = usdata['ded'][-1]*100/overall_population
     doubling_period_in_days = 1.0/reg.coef_[0]
-    doubling_period_until_3pct = log2(0.03/per_capita_infected)*doubling_period_in_days
+    doubling_period_until_3pct = log2(0.03/per_capita_total_infected)*doubling_period_in_days
     print(
         the_state.ljust(15) + 
         # ' confirmed: ' + 
         # '%07d' % (most_recent_values.loc[the_state,'tot']) +
         ' dead: ' + 
-        ('%d' % (most_recent_values.loc[the_state,'ded'])).rjust(5) +
+        ('%d' % (usdata['ded'][-1])).rjust(5) +
         # ' fakeratio: ' + 
         # '%0.4f' % (most_recent_values.loc[the_state,'ded']/most_recent_values.loc[the_state,'tot']) +
         ' percap: ' + 
-        '%0.3f' % (per_capita_infected*100) + '%' + 
+        '%0.3f' % (per_capita_total_infected*100) + '%' + 
         ' period/time to 3%: ' + '%1.1f' % doubling_period_in_days +
         ' %02d' % doubling_period_until_3pct
     )
     if draw_curves:
-        data_to_plot_list.append(usdata['ded'])
+        data_to_plot_list.append(usdata['ded'].diff())
         clf()
         for item in data_to_plot_list:
             semilogy(item, alpha = 0.1)
-        semilogy(usdata['ded'], alpha=1.0)
+        semilogy(usdata['ded'].diff(), alpha=1.0)
         draw()
         show()
         aaaaa=input()
