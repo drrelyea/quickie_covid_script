@@ -6,6 +6,13 @@ import sys
 import os
 from sklearn.linear_model import LinearRegression
 
+import matplotlib.pyplot as plt
+
+def get_cmap(n, name='hsv'):
+    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+    RGB color; the keyword argument name must be a standard mpl colormap name.'''
+    return plt.cm.get_cmap(name, n)
+
 state_populations = pd.read_csv('state_populations.csv',usecols=['State','Pop'])
 
 
@@ -59,30 +66,52 @@ long_usdata.groupby(['state','day']).sum()
 most_recent_date = filename.split('/')[-1][0:10]
 
 most_recent_values = long_usdata[long_usdata.day == most_recent_date][['tot','ded','state']].groupby('state').sum()
-the_states = most_recent_values.sort_values(by='tot').index.tolist()[-30:]
+# the_states = most_recent_values.sort_values(by='tot').index.tolist()[-30:]
+the_states = state_populations['State'].values
 
-for the_state in the_states:
+draw_curves = True
+
+# thetype = 'tot'
+# the_pct = 0.03
+
+thetype = 'ded'
+the_pct = 0.006
+data_to_plot_list = []
+for istate,the_state in enumerate(the_states):
 # pick a state, any state
 # the_state = 'Connecticut'
     short_group = short_usdata[short_usdata.state == the_state][['tot','ded','day']].groupby('day').sum()
     long_group = long_usdata[long_usdata.state == the_state][['tot','ded','day']].groupby('day').sum()
     usdata = pd.concat([short_group,long_group])
-    usdata.loc[usdata.tot == 0,'tot'] = 1
+    usdata.loc[usdata[thetype] == 0,thetype] = 1
 
-    reg = LinearRegression().fit(np.arange(len(usdata)).reshape(-1,1),np.log2(usdata.tot.values))
+    # reg = LinearRegression().fit(np.arange(len(usdata)).reshape(-1,1),np.log2(usdata.tot.values))
+    # do the last 5 days
+    n_most_recent_days = 5
+    reg = LinearRegression().fit(np.arange(n_most_recent_days).reshape(-1,1),np.log2(usdata[thetype].values[-n_most_recent_days:]))
     overall_population = state_populations[state_populations.State == the_state].Pop.values[0]
-    per_capita_infected = most_recent_values.loc[the_state,'tot']/overall_population
+    per_capita_infected = most_recent_values.loc[the_state,'ded']*100/overall_population
     doubling_period_in_days = 1.0/reg.coef_[0]
     doubling_period_until_3pct = log2(0.03/per_capita_infected)*doubling_period_in_days
     print(
         the_state.ljust(15) + 
-        ' confirmed: ' + 
-        '%07d' % (most_recent_values.loc[the_state,'tot']) +
+        # ' confirmed: ' + 
+        # '%07d' % (most_recent_values.loc[the_state,'tot']) +
+        ' dead: ' + 
+        ('%d' % (most_recent_values.loc[the_state,'ded'])).rjust(5) +
+        # ' fakeratio: ' + 
+        # '%0.4f' % (most_recent_values.loc[the_state,'ded']/most_recent_values.loc[the_state,'tot']) +
         ' percap: ' + 
-        '%0.5f' % per_capita_infected +
-        ' doubling_period (days): ' + '%1.2f' % doubling_period_in_days +
-        ' time to 3%: ' + 
-        '%03d' % doubling_period_until_3pct
+        '%0.3f' % (per_capita_infected*100) + '%' + 
+        ' period/time to 3%: ' + '%1.1f' % doubling_period_in_days +
+        ' %02d' % doubling_period_until_3pct
     )
-# clf()
-# semilogy(usdata.tot)
+    if draw_curves:
+        data_to_plot_list.append(usdata['ded'])
+        clf()
+        for item in data_to_plot_list:
+            semilogy(item, alpha = 0.1)
+        semilogy(usdata['ded'], alpha=1.0)
+        draw()
+        show()
+        aaaaa=input()
